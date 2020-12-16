@@ -1,11 +1,11 @@
 package cmd
 
 import (
-	"fmt"
 	"io/ioutil"
-	"log"
 	"os"
+	"path/filepath"
 
+	"github.com/olekukonko/tablewriter"
 	"github.com/pelletier/go-toml"
 	"github.com/spf13/cobra"
 )
@@ -27,14 +27,44 @@ var lsCmd = &cobra.Command{
 }
 
 func appscan() error {
-	files, err := ioutil.ReadDir("./")
+	table := tablewriter.NewWriter(os.Stdout)
+	table.SetHeader([]string{"Directory Name", "Appname"})
+	table.SetAutoWrapText(false)
+	table.SetAutoFormatHeaders(true)
+	table.SetHeaderAlignment(tablewriter.ALIGN_LEFT)
+	table.SetAlignment(tablewriter.ALIGN_LEFT)
+	table.SetCenterSeparator("")
+	table.SetColumnSeparator("")
+	table.SetRowSeparator("")
+	table.SetHeaderLine(false)
+	table.SetBorder(false)
+	table.SetTablePadding("\t") // pad with tabs
+	table.SetNoWhiteSpace(true)
+
+	err := scanapps(table, "./")
+
 	if err != nil {
-		log.Fatal(err)
+		return err
+	}
+
+	table.Render()
+
+	return nil
+}
+
+func scanapps(table *tablewriter.Table, dirname string) error {
+	return scanappsprefixed("", table, dirname)
+}
+
+func scanappsprefixed(prefix string, table *tablewriter.Table, dirname string) error {
+	files, err := ioutil.ReadDir(dirname)
+	if err != nil {
+		return err
 	}
 
 	for _, f := range files {
 		if f.IsDir() {
-			tomlName := f.Name() + "/fly.toml"
+			tomlName := filepath.Join(dirname, f.Name(), "fly.toml")
 			if fileExists(tomlName) {
 				flyToml, err := toml.LoadFile(tomlName)
 				if err != nil {
@@ -42,11 +72,16 @@ func appscan() error {
 				} else {
 					appNameHolder := flyToml.Get("app")
 					if appNameHolder == nil {
-						fmt.Printf("%20s %32s\n", f.Name(), "Bad fly.toml (no app=)")
+						table.Append([]string{prefix + f.Name(), "Bad fly.toml (no app=)"})
 					} else {
 						appName := appNameHolder.(string)
-						fmt.Printf("%20s %32s\n", f.Name(), appName)
+						table.Append([]string{prefix + f.Name(), appName})
 					}
+				}
+			} else {
+				err = scanappsprefixed(prefix+f.Name()+"/", table, filepath.Join(dirname, f.Name()))
+				if err != nil {
+					return err
 				}
 			}
 		}
