@@ -4,14 +4,19 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/olekukonko/tablewriter"
 	"github.com/pelletier/go-toml"
 	"github.com/spf13/cobra"
 )
 
+var recursive bool
+
 func init() {
-	rootCmd.AddCommand(lsCmd)
+	lsCmd.Flags().BoolVarP(&recursive, "recursive", "r", false, "Recur into any non-dotted directory to search heirachies")
+	//rootCmd.AddCommand(lsCmd)
+
 }
 
 var lsCmd = &cobra.Command{
@@ -28,7 +33,7 @@ var lsCmd = &cobra.Command{
 
 func appscan() error {
 	table := tablewriter.NewWriter(os.Stdout)
-	table.SetHeader([]string{"Directory Name", "Appname"})
+	table.SetHeader([]string{"Appname", "Directory Name"})
 	table.SetAutoWrapText(false)
 	table.SetAutoFormatHeaders(true)
 	table.SetHeaderAlignment(tablewriter.ALIGN_LEFT)
@@ -63,7 +68,7 @@ func scanappsprefixed(prefix string, table *tablewriter.Table, dirname string) e
 	}
 
 	for _, f := range files {
-		if f.IsDir() {
+		if f.IsDir() && !strings.HasPrefix(f.Name(), ".") {
 			tomlName := filepath.Join(dirname, f.Name(), "fly.toml")
 			if fileExists(tomlName) {
 				flyToml, err := toml.LoadFile(tomlName)
@@ -72,16 +77,18 @@ func scanappsprefixed(prefix string, table *tablewriter.Table, dirname string) e
 				} else {
 					appNameHolder := flyToml.Get("app")
 					if appNameHolder == nil {
-						table.Append([]string{prefix + f.Name(), "Bad fly.toml (no app=)"})
+						table.Append([]string{"Bad fly.toml (no app=)", prefix + f.Name()})
 					} else {
 						appName := appNameHolder.(string)
-						table.Append([]string{prefix + f.Name(), appName})
+						table.Append([]string{appName, prefix + f.Name()})
 					}
 				}
 			} else {
-				err = scanappsprefixed(prefix+f.Name()+"/", table, filepath.Join(dirname, f.Name()))
-				if err != nil {
-					return err
+				if recursive {
+					err = scanappsprefixed(prefix+f.Name()+"/", table, filepath.Join(dirname, f.Name()))
+					if err != nil {
+						return err
+					}
 				}
 			}
 		}
