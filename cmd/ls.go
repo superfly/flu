@@ -15,8 +15,6 @@ var recursive bool
 
 func init() {
 	lsCmd.Flags().BoolVarP(&recursive, "recursive", "r", false, "Recur into any non-dotted directory to search heirachies")
-	//rootCmd.AddCommand(lsCmd)
-
 }
 
 var lsCmd = &cobra.Command{
