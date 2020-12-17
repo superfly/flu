@@ -30,4 +30,4 @@ long-dawn-1446    	appkata-vscode-remote
 
 Optional flag `-r`/`--recurse` - will recurse down the directories too.
 
-Pull Requests and Issues welcome
+Pull Requests and Issues welcome - Dicussions on [community.fly.io](https://community.fly.io/t/looking-for-feedback-on-new-tool/468)
