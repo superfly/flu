@@ -4,6 +4,7 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 
 	"github.com/olekukonko/tablewriter"
@@ -12,15 +13,18 @@ import (
 )
 
 var recursive bool
+var sortapps bool
 
 func init() {
 	lsCmd.Flags().BoolVarP(&recursive, "recursive", "r", false, "Recur into any non-dotted directory to search heirachies")
+	lsCmd.Flags().BoolVarP(&sortapps, "sortapps", "s", false, "Sort results by app name")
 }
 
 var lsCmd = &cobra.Command{
 	Use:   "ls",
-	Short: "List all the apps in current directory",
-	Long:  `All software has versions. This is Hugo's`,
+	Short: "List all the apps in the children of the current directory",
+	Long: `List all the apps  in the children of the current directory.
+	Scan all directories for fly.toml. Where it exists, parse it and report the app's name`,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		if err := appscan(); err != nil {
 			return err
@@ -44,25 +48,41 @@ func appscan() error {
 	table.SetTablePadding("\t") // pad with tabs
 	table.SetNoWhiteSpace(true)
 
-	err := scanapps(table, "./")
+	appentries, err := scanapps(table, "./")
 
 	if err != nil {
 		return err
 	}
 
+	if sortapps {
+		sort.Slice(appentries, func(i, j int) bool {
+			return appentries[i].appname < appentries[j].appname
+		})
+	}
+
+	for _, v := range appentries {
+		table.Append([]string{v.appname, v.appdir})
+	}
 	table.Render()
 
 	return nil
 }
 
-func scanapps(table *tablewriter.Table, dirname string) error {
+type AppEntry struct {
+	appname string
+	appdir  string
+}
+
+func scanapps(table *tablewriter.Table, dirname string) ([]AppEntry, error) {
 	return scanappsprefixed("", table, dirname)
 }
 
-func scanappsprefixed(prefix string, table *tablewriter.Table, dirname string) error {
+func scanappsprefixed(prefix string, table *tablewriter.Table, dirname string) ([]AppEntry, error) {
+	appentries := make([]AppEntry, 0)
+
 	files, err := ioutil.ReadDir(dirname)
 	if err != nil {
-		return err
+		return appentries, err
 	}
 
 	for _, f := range files {
@@ -71,28 +91,29 @@ func scanappsprefixed(prefix string, table *tablewriter.Table, dirname string) e
 			if fileExists(tomlName) {
 				flyToml, err := toml.LoadFile(tomlName)
 				if err != nil {
-					return err
+					return appentries, err
 				} else {
 					appNameHolder := flyToml.Get("app")
 					if appNameHolder == nil {
-						table.Append([]string{"Bad fly.toml (no app=)", prefix + f.Name()})
+						appentries = append(appentries, AppEntry{"Bad fly.toml (no app=)", prefix + f.Name()})
 					} else {
 						appName := appNameHolder.(string)
-						table.Append([]string{appName, prefix + f.Name()})
+						appentries = append(appentries, AppEntry{appName, prefix + f.Name()})
 					}
 				}
 			} else {
 				if recursive {
-					err = scanappsprefixed(prefix+f.Name()+"/", table, filepath.Join(dirname, f.Name()))
+					subapps, err := scanappsprefixed(prefix+f.Name()+"/", table, filepath.Join(dirname, f.Name()))
 					if err != nil {
-						return err
+						return appentries, err
 					}
+					appentries = append(appentries, subapps...)
 				}
 			}
 		}
 	}
 
-	return nil
+	return appentries, nil
 }
 
 // fileExists checks if a file exists and is not a directory before we
