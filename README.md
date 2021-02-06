@@ -2,13 +2,13 @@
 
 Flu is the start of a utility command line tool for Fly developers. It is centered around managing your fly.toml files and other local assets. Fly/Flyctl is the core tool for interacting with Fly itself. 
 
-This is an early release to gague usefulness.
+This is an early release to gauge usefulness.
 
 Currently implemented commands: 1
 
 flu ls
 
-Scans the directories immediatly below the current directory and reports on the app names in any fly.toml file. e.g.
+Scans the directories immediately below the current directory and reports on the app names in any fly.toml file. e.g.
 
 ```
 ❯ flu ls
@@ -30,4 +30,4 @@ long-dawn-1446    	appkata-vscode-remote
 
 Optional flag `-r`/`--recurse` - will recurse down the directories too.
 
-Pull Requests and Issues welcome - Dicussions on [community.fly.io](https://community.fly.io/t/looking-for-feedback-on-new-tool/468)
+Pull Requests and Issues welcome - Discussions on [community.fly.io](https://community.fly.io/t/looking-for-feedback-on-new-tool/468)
